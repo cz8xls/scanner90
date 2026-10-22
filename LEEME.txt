@@ -1,0 +1,38 @@
+# Escáner de 90 series — Android (PWA)
+
+## Funciones
+- Lee códigos lineales Code 39 y Code 128.
+- Guarda registros en IndexedDB local, sin backend ni cuenta.
+- Evita duplicados mediante índice único en la base local.
+- Meta visual de 90 series.
+- Captura manual, eliminación individual y deshacer última lectura.
+- Exportación CSV para Excel.
+- Respaldo y restauración en JSON.
+- Archivos PWA y service worker para instalación y caché básica.
+
+## Archivos
+- `index.html`: interfaz, cámara, lógica y base de datos IndexedDB.
+- `manifest.webmanifest`: configuración de instalación.
+- `sw.js`: caché de archivos para uso tipo PWA.
+- `icon.svg`: icono.
+
+## Cómo probar
+La cámara del navegador requiere un contexto seguro. Para usarla desde Android, publica la carpeta en un hosting HTTPS estático o sirve los archivos desde un servidor HTTPS accesible por el teléfono. No requiere backend de aplicación ni base de datos en servidor; el hosting solo entrega los archivos estáticos.
+
+1. Sube los cuatro archivos conservando sus nombres.
+2. Abre `https://tu-dominio/` en Chrome Android.
+3. Permite el uso de la cámara.
+4. Pulsa **Iniciar escaneo** y prueba con una etiqueta real.
+5. En el menú de Chrome, selecciona **Instalar aplicación** o **Añadir a pantalla de inicio** cuando aparezca.
+
+## Dependencia de lectura
+El lector `html5-qrcode` se carga desde un CDN. El service worker intenta guardar la biblioteca en caché durante la instalación; la disponibilidad sin conexión de esa dependencia depende de que el navegador permita descargarla y almacenarla correctamente. Abre la aplicación una vez con Internet y prueba el modo avión antes de usarla en una operación real.
+
+## Persistencia y respaldo
+IndexedDB persiste en el perfil del navegador de ese dispositivo. No es una copia de seguridad infalible: borrar datos del sitio, limpiar el navegador o perder el dispositivo puede borrar los datos. Exporta CSV y, de preferencia, un respaldo JSON antes de borrar o cambiar de teléfono. El JSON permite restaurar la lista desde el botón de la aplicación.
+
+## Consideraciones
+- El sistema trata las series como texto para conservar ceros iniciales.
+- Los duplicados se comparan de forma exacta, distinguiendo mayúsculas y minúsculas.
+- Haz pruebas con etiquetas reales: la lectura depende de impresión, enfoque, luz y tamaño de barras.
+- Esta versión es local y no sincroniza entre dispositivos.

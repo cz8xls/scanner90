@@ -1,0 +1,19 @@
+{
+  "name": "Escáner de 90 series",
+  "short_name": "Escáner 90",
+  "description": "Escaneo local de Code 39 y Code 128",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f5f9",
+  "theme_color": "#12345a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

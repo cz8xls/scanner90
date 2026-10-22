@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12345a">
+<meta name="description" content="Escáner local de códigos de barras Code 39 y Code 128 para registrar 90 series.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Escáner de 90 series</title>
+<style>
+:root{--navy:#12345a;--blue:#1769aa;--bg:#f2f5f9;--ink:#172333;--muted:#62748a;--line:#dbe3ec;--green:#147d4a;--red:#b42318}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--navy);color:white;padding:20px 16px 18px}header h1{font-size:1.35rem;margin:0 0 5px}header p{margin:0;color:#dce9f7;font-size:.92rem}
+main{max-width:720px;margin:auto;padding:14px;display:grid;gap:14px}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 3px 12px #142b450c}
+h2{font-size:1.08rem;margin:0 0 12px}.stats{display:flex;justify-content:space-between;align-items:center;gap:10px}.big{font-size:1.7rem;font-weight:800;color:var(--navy)}.small{font-size:.85rem;color:var(--muted)}
+.progressline{height:10px;background:#e8edf3;border-radius:99px;overflow:hidden;margin:10px 0 6px}#bar{height:100%;width:0;background:var(--green);transition:width .2s}
+button{border:0;border-radius:11px;padding:12px 14px;font:inherit;font-weight:650;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.primary{background:var(--blue);color:#fff}.dark{background:var(--navy);color:white}.light{background:#edf3f9;color:var(--navy)}.danger{background:#fff0ef;color:var(--red)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}.actions button{flex:1 1 auto}
+#reader{width:100%;overflow:hidden;border-radius:12px;background:#101820;min-height:30px}#reader video{width:100%;border-radius:12px}
+.status{padding:10px 12px;border-radius:10px;background:#eef5fb;color:var(--navy);font-size:.91rem;margin-top:10px;overflow-wrap:anywhere}.status.good{background:#e9f8ef;color:#11663b}.status.bad{background:#fff0ef;color:#a11c14}
+label{display:block;font-weight:650;margin-bottom:7px}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit}.manual{display:grid;grid-template-columns:1fr auto;gap:8px}
+.listhead{display:flex;justify-content:space-between;align-items:center;gap:8px}ol{padding-left:28px;margin:12px 0 0}li{padding:8px 0;border-bottom:1px solid #edf0f4;overflow-wrap:anywhere}.itemrow{display:flex;justify-content:space-between;gap:8px;align-items:center}.itemrow code{font-size:.93rem;overflow-wrap:anywhere;white-space:normal}.itemrow button{padding:6px 9px;font-size:.8rem}
+.note{font-size:.81rem;color:var(--muted);line-height:1.45}.hidden{display:none!important}footer{text-align:center;padding:4px 14px 22px;color:var(--muted);font-size:.8rem}
+</style>
+</head>
+<body>
+<header><h1>Escáner de 90 series</h1><p>Code 39 y Code 128 · Datos guardados en este celular</p></header>
+<main>
+<section class="card">
+  <div class="stats"><div><div class="small">Progreso</div><div class="big"><span id="count">0</span> / 90</div></div><div class="small" id="percent">0% completado</div></div>
+  <div class="progressline"><div id="bar"></div></div><div class="small" id="remaining">Faltan 90 series.</div>
+</section>
+<section class="card">
+  <h2>1. Escanear con la cámara</h2><div id="reader"></div>
+  <div class="actions" style="margin-top:10px"><button class="primary" id="startBtn">Iniciar escaneo</button><button class="light" id="stopBtn" disabled>Detener cámara</button></div>
+  <div class="status" id="status" role="status" aria-live="polite">Pulsa Iniciar escaneo y permite el acceso a la cámara.</div>
+  <p class="note">Enfoca el código completo, con buena iluminación. Se habilitan únicamente Code 39 y Code 128. El navegador debe permitir el uso de cámara (normalmente HTTPS).</p>
+</section>
+<section class="card">
+  <h2>2. Captura manual</h2><label for="manualInput">Número de serie</label>
+  <div class="manual"><input id="manualInput" autocomplete="off" placeholder="Escribe o pega el número"><button class="dark" id="addBtn">Agregar</button></div>
+</section>
+<section class="card">
+  <div class="listhead"><h2 style="margin:0">3. Series registradas</h2><span class="small" id="listCount">0 elementos</span></div>
+  <ol id="items"><li class="small">Todavía no hay registros.</li></ol>
+  <div class="actions" style="margin-top:14px">
+    <button class="primary" id="exportCsvBtn">Exportar CSV</button>
+    <button class="light" id="backupBtn">Respaldo JSON</button>
+    <button class="light" id="restoreBtn">Restaurar respaldo</button>
+    <button class="light" id="undoBtn" disabled>Deshacer última</button>
+    <button class="danger" id="clearBtn">Borrar todo</button>
+    <input class="hidden" type="file" id="restoreFile" accept=".json,application/json">
+  </div>
+  <p class="note">IndexedDB guarda los datos localmente. Exporta un CSV para Excel y conserva también un respaldo JSON para poder restaurar la lista en este navegador.</p>
+</section>
+</main>
+<footer>Versión local 1.0 · Sin cuenta ni servidor de base de datos</footer>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+(() => {
+  'use strict';
+  const DB_NAME='EscanerSeriesDB', DB_VERSION=1, STORE='series', TARGET=90;
+  const $=id=>document.getElementById(id);
+  let db=null, scanner=null, scanning=false, lastCode='', lastAt=0, lockUntil=0, records=[];
+  const setStatus=(msg,kind='')=>{$('status').textContent=msg;$('status').className='status'+(kind?' '+kind:'');};
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      if(!('indexedDB' in window)){reject(new Error('Este navegador no admite IndexedDB.'));return;}
+      const req=indexedDB.open(DB_NAME,DB_VERSION);
+      req.onupgradeneeded=()=>{const d=req.result;if(!d.objectStoreNames.contains(STORE)){const s=d.createObjectStore(STORE,{keyPath:'id',autoIncrement:true});s.createIndex('code','code',{unique:true});s.createIndex('capturedAt','capturedAt');}};
+      req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('No se pudo abrir la base local.'));
+    });
+  }
+  function txDone(tx){return new Promise((resolve,reject)=>{tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Operación cancelada.'));});}
+  async function readAll(){
+    const tx=db.transaction(STORE,'readonly'), req=tx.objectStore(STORE).getAll();
+    const result=await new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(req.result||[]);req.onerror=()=>reject(req.error);});
+    return result.sort((a,b)=>a.id-b.id);
+  }
+  async function refresh(){records=await readAll();render();}
+  function render(){
+    const n=records.length,pct=Math.min(100,Math.round(n/TARGET*100));
+    $('count').textContent=n;$('percent').textContent=pct+'% completado';$('bar').style.width=pct+'%';
+    $('remaining').textContent=n>=TARGET?'Objetivo de 90 alcanzado. Puedes continuar si lo necesitas.':`Faltan ${TARGET-n} series para completar el objetivo.`;
+    $('listCount').textContent=`${n} elemento${n===1?'':'s'}`;$('undoBtn').disabled=!n;
+    const list=$('items');list.replaceChildren();
+    if(!n){const li=document.createElement('li');li.className='small';li.textContent='Todavía no hay registros.';list.appendChild(li);return;}
+    records.forEach((r,i)=>{const li=document.createElement('li'),row=document.createElement('div');row.className='itemrow';
+      const code=document.createElement('code');code.textContent=r.code;
+      const meta=document.createElement('span');meta.className='small';meta.textContent='#'+(i+1);
+      const del=document.createElement('button');del.className='light';del.textContent='Quitar';del.setAttribute('aria-label','Quitar '+r.code);
+      del.addEventListener('click',async()=>{try{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(r.id);await txDone(tx);await refresh();setStatus('Registro eliminado.');}catch(e){setStatus('No se pudo eliminar: '+e.message,'bad');}});
+      row.append(code,meta,del);li.appendChild(row);list.appendChild(li);
+    });
+  }
+  async function addCode(raw,source='cámara'){
+    const code=String(raw??'').trim();if(!code)return;
+    try{
+      const tx=db.transaction(STORE,'readwrite');
+      tx.objectStore(STORE).add({code,source,capturedAt:new Date().toISOString()});
+      await txDone(tx);await refresh();setStatus(`Registrado: ${code}`,'good');
+      if(records.length>=TARGET)setStatus(`¡Objetivo de 90 series alcanzado! Último: ${code}`,'good');
+      try{navigator.vibrate?.(65);}catch(_){}
+    }catch(e){
+      if(e&&e.name==='ConstraintError'){setStatus(`Código duplicado: ${code}. No se agregó otra vez.`,'bad');}
+      else setStatus('No se pudo guardar el registro: '+(e.message||'error desconocido'),'bad');
+    }
+  }
+  async function startScanner(){
+    if(!window.Html5Qrcode){setStatus('No se cargó el lector. Conéctate a Internet una vez y vuelve a abrir la aplicación.','bad');return;}
+    if(scanning)return;
+    const formats=[Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.CODE_128];
+    scanner=new Html5Qrcode('reader',{formatsToSupport:formats,verbose:false});
+    $('startBtn').disabled=true;setStatus('Solicitando acceso a la cámara…');
+    try{
+      await scanner.start({facingMode:'environment'},{fps:12,qrbox:(w,h)=>({width:Math.min(Math.floor(w*.92),520),height:Math.min(Math.floor(h*.35),180)}),aspectRatio:1.7},
+      decoded=>{const now=Date.now();if(now<lockUntil)return;if(decoded===lastCode&&now-lastAt<1700)return;lastCode=decoded;lastAt=now;lockUntil=now+800;addCode(decoded,'cámara');},()=>{});
+      scanning=true;$('stopBtn').disabled=false;setStatus('Cámara activa. Enfoca el código de barras.','good');
+    }catch(e){scanner=null;$('startBtn').disabled=false;setStatus('No se pudo iniciar la cámara. Verifica el permiso y abre la aplicación mediante HTTPS.','bad');}
+  }
+  async function stopScanner(){
+    if(scanner&&scanning){try{await scanner.stop();await scanner.clear();}catch(_){}}
+    scanner=null;scanning=false;$('startBtn').disabled=false;$('stopBtn').disabled=true;setStatus('Cámara detenida.');
+  }
+  function download(name,blob){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1200);}
+  $('startBtn').addEventListener('click',startScanner);$('stopBtn').addEventListener('click',stopScanner);
+  $('addBtn').addEventListener('click',()=>{const v=$('manualInput').value;if(!v.trim()){setStatus('Escribe una serie antes de agregarla.','bad');return;}addCode(v,'manual');$('manualInput').value='';$('manualInput').focus();});
+  $('manualInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('addBtn').click();});
+  $('undoBtn').addEventListener('click',async()=>{if(!records.length)return;const last=records[records.length-1];const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(last.id);await txDone(tx);await refresh();setStatus('Se deshizo la última captura: '+last.code);});
+  $('clearBtn').addEventListener('click',async()=>{if(!records.length){setStatus('La lista ya está vacía.');return;}if(confirm('¿Borrar todas las series de este dispositivo? Exporta un respaldo antes si lo necesitas.')){const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).clear();await txDone(tx);await refresh();setStatus('Se borraron todos los registros.');}});
+  $('exportCsvBtn').addEventListener('click',async()=>{await refresh();if(!records.length){setStatus('No hay series para exportar.','bad');return;}
+    const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+    const rows=[['Numero de serie','Origen','Fecha y hora'],...records.map(r=>[r.code,r.source,r.capturedAt])];
+    download('series_codigos_barras.csv',new Blob(['\ufeff'+rows.map(r=>r.map(q).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8;'}));setStatus('CSV exportado. Guarda el archivo en un lugar seguro.','good');
+  });
+  $('backupBtn').addEventListener('click',async()=>{await refresh();const data={app:'Escaner90',version:1,exportedAt:new Date().toISOString(),records:records.map(({code,source,capturedAt})=>({code,source,capturedAt}))};download('respaldo_series.json',new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));setStatus('Respaldo JSON exportado.','good');});
+  $('restoreBtn').addEventListener('click',()=>$('restoreFile').click());
+  $('restoreFile').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;try{
+    const parsed=JSON.parse(await file.text()),items=Array.isArray(parsed)?parsed:parsed.records;
+    if(!Array.isArray(items))throw new Error('El archivo no contiene una lista de registros.');
+    let added=0,duplicates=0;
+    for(const item of items){if(!item||typeof item.code!=='string'||!item.code.trim())continue;
+      try{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).add({code:item.code.trim(),source:item.source||'respaldo',capturedAt:item.capturedAt||new Date().toISOString()});await txDone(tx);added++;}
+      catch(err){if(err.name==='ConstraintError')duplicates++;else throw err;}
+    }
+    await refresh();setStatus(`Respaldo procesado: ${added} agregadas, ${duplicates} duplicadas omitidas.`,'good');
+  }catch(err){setStatus('No se pudo restaurar el archivo: '+err.message,'bad');}finally{e.target.value='';}});
+  (async()=>{try{db=await openDB();await refresh();if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});}catch(e){setStatus('No se pudo abrir la base local: '+e.message,'bad');$('startBtn').disabled=true;$('addBtn').disabled=true;}})();
+  window.addEventListener('beforeunload',()=>{if(scanner&&scanning)scanner.stop().catch(()=>{});});
+})();
+</script>
+</body>
+</html>
